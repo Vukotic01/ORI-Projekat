@@ -3,12 +3,13 @@ import cv2
 import numpy as np
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from keras.layers import Flatten, Dense, Dropout
 from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import Adam
 from keras.utils import to_categorical
+from keras.applications import VGG16
 
-class DogBreedClassifier:
+class TransferLearningDogBreedClassifier:
     def __init__(self, data_dir):
         self.data_dir = data_dir
         self.class_dict = {}
@@ -32,7 +33,7 @@ class DogBreedClassifier:
                         image_path = os.path.join(folder_path, image_name)
                         try:
                             image = cv2.imread(image_path)
-                            image = cv2.resize(image, (224, 224))
+                            image = cv2.resize(image, (224, 224))  # Use input size compatible with VGG16
                             self.images.append(image)
                             self.labels.append(self.class_dict[class_name])
                         except Exception as e:
@@ -65,40 +66,19 @@ class DogBreedClassifier:
         self.test_labels = test_labels
 
     def build_model(self):
+        # Load pre-trained VGG16 model without the top (fully connected) layers
+        base_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+
         self.model = Sequential()
-        self.model.add(Conv2D(64, (3, 3), activation='relu', input_shape=(224, 224, 3)))
-        self.model.add(Conv2D(64, (3, 3), activation='relu'))
-        self.model.add(MaxPooling2D((2, 2)))
-
-        self.model.add(Conv2D(128, (3, 3), activation='relu'))
-        self.model.add(Conv2D(128, (3, 3), activation='relu'))
-        self.model.add(MaxPooling2D((2, 2)))
-
-        self.model.add(Conv2D(256, (3, 3), activation='relu'))
-        self.model.add(Conv2D(256, (3, 3), activation='relu'))
-        self.model.add(Conv2D(256, (3, 3), activation='relu'))
-        self.model.add(MaxPooling2D((2, 2)))
-
-        self.model.add(Conv2D(512, (3, 3), activation='relu'))
-        self.model.add(Conv2D(512, (3, 3), activation='relu'))
-        self.model.add(Conv2D(512, (3, 3), activation='relu'))
-        self.model.add(MaxPooling2D((2, 2)))
-
-        self.model.add(Conv2D(512, (3, 3), activation='relu'))
-        self.model.add(Conv2D(512, (3, 3), activation='relu'))
-        self.model.add(Conv2D(512, (3, 3), activation='relu'))
-        self.model.add(MaxPooling2D((2, 2)))
-
+        self.model.add(base_model)
         self.model.add(Flatten())
-        self.model.add(Dense(4096, activation='relu'))
-        self.model.add(Dropout(0.5))
-        self.model.add(Dense(4096, activation='relu'))
+        self.model.add(Dense(1024, activation='relu'))
         self.model.add(Dropout(0.5))
         self.model.add(Dense(self.num_classes, activation='softmax'))
 
     def train_model(self):
         datagen = ImageDataGenerator(
-            rotation_range=30,
+            rotation_range=20,
             width_shift_range=0.2,
             height_shift_range=0.2,
             shear_range=0.2,
@@ -115,9 +95,11 @@ class DogBreedClassifier:
             metrics=['accuracy']
         )
 
+        batch_size = 32  # Reduce the batch size
         self.model.fit(
-            datagen.flow(self.train_images, self.train_labels, batch_size=32),
-            epochs=50,
+            datagen.flow(self.train_images, self.train_labels, batch_size=batch_size),
+            steps_per_epoch=len(self.train_images) // batch_size,  # Adjust steps per epoch
+            epochs=100,
             validation_data=(self.val_images, self.val_labels)
         )
 
@@ -130,7 +112,7 @@ class DogBreedClassifier:
 
     def predict_breed(self, image_path):
         img = cv2.imread(image_path)
-        img = cv2.resize(img, (224, 224))
+        img = cv2.resize(img, (224, 224))  # Use input size compatible with VGG16
         img = np.expand_dims(img, axis=0)
         img = img / 255.0
         prediction = self.model.predict(img)

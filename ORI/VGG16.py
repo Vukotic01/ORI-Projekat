@@ -3,10 +3,11 @@ import cv2
 import numpy as np
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+from keras.layers import Flatten, Dense, Dropout
 from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import Adam
 from keras.utils import to_categorical
+from keras.applications import VGG16
 
 class DogBreedClassifier:
     def __init__(self, data_dir):
@@ -40,8 +41,8 @@ class DogBreedClassifier:
 
         self.images = np.array(self.images)
         self.labels = np.array(self.labels)
-        print("Number of images:",len(self.images))
-        print("Number of labels:",len(self.labels))
+        print("Number of images:", len(self.images))
+        print("Number of labels:", len(self.labels))
 
     def split_data(self):
         train_images, test_images, train_labels, test_labels = train_test_split(
@@ -63,17 +64,16 @@ class DogBreedClassifier:
         self.train_labels = train_labels
         self.val_labels = val_labels
         self.test_labels = test_labels
-
+        
     def build_model(self):
+        base_model = VGG16(weights='imagenet', include_top=False, input_shape=(64, 64, 3))
+
+        # Freeze the layers in the base VGG16 model
+        for layer in base_model.layers:
+            layer.trainable = False
+
         self.model = Sequential()
-        self.model.add(Conv2D(64, (3, 3), activation='relu', input_shape=(64, 64, 3)))
-        self.model.add(MaxPooling2D((2, 2)))
-        self.model.add(Conv2D(128, (3, 3), activation='relu'))
-        self.model.add(MaxPooling2D((2, 2)))
-        self.model.add(Conv2D(256, (3, 3), activation='relu'))
-        self.model.add(MaxPooling2D((2, 2)))
-        self.model.add(Conv2D(512, (3, 3), activation='relu'))
-        self.model.add(MaxPooling2D((2, 2)))
+        self.model.add(base_model)
         self.model.add(Flatten())
         self.model.add(Dense(1024, activation='relu'))
         self.model.add(Dropout(0.5))
@@ -124,3 +124,6 @@ class DogBreedClassifier:
                 return breed
 
         return "Unknown"
+
+
+

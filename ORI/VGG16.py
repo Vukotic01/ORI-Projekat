@@ -49,7 +49,7 @@ class DogBreedClassifier:
             self.images, self.labels, test_size=0.2, random_state=42
         )
         train_images, val_images, train_labels, val_labels = train_test_split(
-            train_images, train_labels, test_size=0.4, random_state=42
+            train_images, train_labels, test_size=0.2, random_state=42
         )
 
         self.num_classes = len(np.unique(train_labels))

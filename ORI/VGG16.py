@@ -8,6 +8,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import Adam
 from keras.utils import to_categorical
 from keras.applications import VGG16
+import matplotlib.pyplot as plt
 
 class DogBreedClassifier:
     def __init__(self, data_dir):
@@ -98,11 +99,20 @@ class DogBreedClassifier:
             metrics=['accuracy']
         )
 
-        self.model.fit(
+        history = self.model.fit(
             datagen.flow(self.train_images, self.train_labels, batch_size=128),
             epochs=550,
             validation_data=(self.val_images, self.val_labels)
         )
+
+        # Plotting the accuracy and validation accuracy during training
+        plt.plot(history.history['accuracy'], color='blue')
+        plt.plot(history.history['val_accuracy'], color='red')
+        plt.title('Model Accuracy')
+        plt.ylabel('Accuracy')
+        plt.xlabel('Epoch')
+        plt.legend(['Train', 'Validation'], loc='upper left')
+        plt.show()
 
     def evaluate_model(self):
         test_loss, test_accuracy = self.model.evaluate(
